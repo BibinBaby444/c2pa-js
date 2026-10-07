@@ -126,11 +126,33 @@ describe('reader.fromBlobFragment with fragmentBaseOffset', () => {
     });
 
     test('works without settings, as in the README example', async ({ c2pa }) => {
-      // The options argument must reach the wasm even when no settings are
-      // passed (a different code path in the wasm reader).
+      // Calls the reader directly with no settings, so no context JSON is
+      // sent to the wasm (verifySegment would substitute its default).
       const seg = rendition.segments[3];
-      expectBound(await verifySegment(c2pa, rendition.init, seg.file, seg.offset, undefined));
-      expectRejected(await verifySegment(c2pa, rendition.init, seg.file, undefined, undefined));
+      const init = await getBlobForAsset(assetUrl(rendition.init));
+      const segment = await getBlobForAsset(assetUrl(seg.file));
+      const verdict = async (fragmentBaseOffset: number): Promise<SegmentVerdict> => {
+        const reader = await c2pa.reader.fromBlobFragment('video/mp4', init, segment, undefined, {
+          fragmentBaseOffset
+        });
+        expect(reader).not.toBeNull();
+        const store = (await reader!.manifestStore()) as ManifestStore;
+        return {
+          state: store.validation_state as string,
+          success: statusCodes(store, 'success'),
+          failure: statusCodes(store, 'failure')
+        };
+      };
+      const right = await verdict(seg.offset);
+      expect(right.success).toContain('assertion.bmffHash.match');
+      // Default settings verify trust, which the test certificate fails;
+      // this also shows the noTrust settings were not applied (with them
+      // there would be no failure at all).
+      expect(right.state).toBe('Valid');
+      expect(right.failure).toEqual(['signingCredential.untrusted']);
+      const wrong = await verdict(seg.offset + 1);
+      expect(wrong.state).toBe('Invalid');
+      expect(wrong.failure).toContain('assertion.bmffHash.mismatch');
     });
 
     test('throws on an offset that is not a non-negative safe integer', async ({ c2pa }) => {
