@@ -37,12 +37,19 @@ rx(
       const readerId = readerMap.add(reader);
       return readerId;
     },
-    async reader_fromBlobFragment(format, init, fragment, contextJson) {
+    async reader_fromBlobFragment(
+      format,
+      init,
+      fragment,
+      contextJson,
+      fragmentBaseOffset
+    ) {
       const reader = await WasmReader.fromBlobFragment(
         format,
         init,
         fragment,
-        contextJson
+        contextJson,
+        fragmentBaseOffset
       );
       const readerId = readerMap.add(reader);
       return readerId;

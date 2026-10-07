@@ -81,6 +81,33 @@ console.log(manifestStore);
 await reader.free();
 ```
 
+### Reading fragmented video (DASH / HLS)
+
+For fragmented MP4 that ships as separate files (an initialization segment plus `.m4s` segment files), pass the init bytes and one segment at a time:
+
+```typescript
+const reader = await c2pa.reader.fromBlobFragment('video/mp4', initBlob, segmentBlob);
+```
+
+For a **single-file** fragmented MP4 served by byte range (HLS `EXT-X-BYTERANGE`), the asset's hard binding covers absolute byte offsets, so the reader must also be told where the segment sat in the file:
+
+```typescript
+const reader = await c2pa.reader.fromBlobFragment(
+  'video/mp4',
+  initBlob,
+  segmentBlob,
+  undefined, // settings
+  { fragmentBaseOffset: byteRangeStart } // absolute offset of segmentBlob's first byte
+);
+```
+
+The cut has to follow the specification's leaf boundaries: the init blob is everything before the first C2PA `merkle` uuid box, and each segment runs from one `merkle` uuid box to the next (the last one to end of file), so the playlist must be generated from the signed file with those boundaries. A segment cut anywhere else, or verified at the wrong offset, reports `assertion.bmffHash.mismatch`. Players expose the offset per segment (`Fragment.byteRangeStartOffset` in hls.js, `SegmentReference.getStartByte()` in Shaka).
+
+Byte ranges that a player derives from the file's own `sidx` boxes (DASH on-demand `SegmentBase`, or an HLS playlist cut at each `sidx`) do **not** match as delivered: a leaf runs up to the next `moof`, so it includes the following fragment's `sidx`, while a `sidx` reference ends at the end of the `mdat`. Passed straight to `fromBlobFragment`, such segments are rejected even with the right offset. Two ways round it:
+
+- Regroup the bytes before calling the reader: everything in a segment before its C2PA `merkle` box belongs to the previous leaf. The `@stardustproof/c2pa-bridges` hls.js and Shaka adapters do this automatically.
+- Sign with c2pa-rs `core.single_file_fragment_exclude_sidx` (STARDUSTproof CLI `--exclude-sidx-from-hash`), which leaves `sidx` out of the hash so `sidx`-cut segments verify as delivered.
+
 ### Building C2PA manifests with ingredients
 
 Use the `Builder` API to create C2PA manifests and add ingredients (source assets) to document the provenance chain.

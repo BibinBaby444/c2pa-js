@@ -68,17 +68,31 @@ impl WasmReader {
 
     /// Attempts to create a new `WasmReader` from an asset format, a `Blob` of the bytes of the initial segment, and a fragment `Blob`.
     /// Optionally accepts a context JSON string to configure the reader.
+    ///
+    /// `fragment_base_offset` is for a fragment cut out of a single-file fragmented BMFF asset
+    /// (for example one byte-range HLS segment): it is the absolute byte offset of the fragment's
+    /// first byte within that asset, which the asset's hard binding covers. Leave it `undefined`
+    /// (or `0`) for a fragment that is its own file. It must be a non-negative safe integer.
     #[wasm_bindgen(js_name = fromBlobFragment)]
     pub async fn from_blob_fragment(
         format: &str,
         init: &Blob,
         fragment: &Blob,
         context_json: Option<String>,
+        fragment_base_offset: Option<f64>,
     ) -> Result<WasmReader, JsString> {
         let init_stream = BlobStream::new(init);
         let fragment_stream = BlobStream::new(fragment);
+        let fragment_base_offset = base_offset_from_js(fragment_base_offset)?;
 
-        WasmReader::from_stream_fragment(format, init_stream, fragment_stream, context_json).await
+        WasmReader::from_stream_fragment(
+            format,
+            init_stream,
+            fragment_stream,
+            context_json,
+            fragment_base_offset,
+        )
+        .await
     }
 
     async fn from_stream_fragment(
@@ -86,17 +100,18 @@ impl WasmReader {
         init: impl Read + Seek + Send,
         fragment: impl Read + Seek + Send,
         context_json: Option<String>,
+        fragment_base_offset: u64,
     ) -> Result<WasmReader, JsString> {
         let reader = if let Some(json) = context_json {
             let context = Context::new()
                 .with_settings(json.as_str())
                 .map_err(WasmError::from)?;
             Reader::from_context(context)
-                .with_fragment_async(format, init, fragment)
+                .with_fragment_at_offset_async(format, init, fragment, fragment_base_offset)
                 .await
                 .map_err(WasmError::from)?
         } else {
-            Reader::from_fragment_async(format, init, fragment)
+            Reader::from_fragment_at_offset_async(format, init, fragment, fragment_base_offset)
                 .await
                 .map_err(WasmError::from)?
         };
@@ -162,5 +177,31 @@ impl WasmReader {
             .map_err(WasmError::from)?;
 
         Ok(cursor_to_u8array(stream)?)
+    }
+}
+
+/// Largest integer JavaScript represents exactly (`Number.MAX_SAFE_INTEGER`).
+const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
+
+/// Converts an optional JavaScript number into a byte offset.
+///
+/// JavaScript numbers are doubles, so the value is only accepted when it is a
+/// finite, non-negative integer no larger than `Number.MAX_SAFE_INTEGER`;
+/// anything else (including `NaN`, `-1` or `1.5`) is rejected rather than
+/// silently truncated into a different offset. `undefined` means `0`.
+///
+/// c2pa-web applies the same rule before calling in (and throws a
+/// `RangeError`), which is what `reader.singleFile.spec.ts` exercises; this is
+/// the defence in depth for direct callers of the wasm module. This crate's
+/// native test target does not build, so there is no unit test here.
+fn base_offset_from_js(value: Option<f64>) -> Result<u64, JsString> {
+    match value {
+        None => Ok(0),
+        Some(v) if v.is_finite() && v >= 0.0 && v <= MAX_SAFE_INTEGER && v.fract() == 0.0 => {
+            Ok(v as u64)
+        }
+        Some(v) => Err(JsString::from(format!(
+            "fragmentBaseOffset must be a non-negative safe integer, got {v}"
+        ))),
     }
 }

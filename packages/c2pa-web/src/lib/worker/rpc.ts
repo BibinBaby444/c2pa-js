@@ -27,7 +27,8 @@ const { createTx, rx } = channel<{
     format: string,
     init: Blob,
     fragment: Blob,
-    contextJson?: string
+    contextJson?: string,
+    fragmentBaseOffset?: number
   ) => Promise<number>;
 
   // Reader methods

@@ -9,7 +9,7 @@
 
 export type * from './lib/c2pa.js';
 
-export type { Reader, ReaderFactory } from './lib/reader.js';
+export type { FragmentOptions, Reader, ReaderFactory } from './lib/reader.js';
 
 export type {
   Builder,

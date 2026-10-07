@@ -35,19 +35,46 @@ export interface ReaderFactory {
   ) => Promise<Reader | null>;
 
   /**
+   * Create a {@link Reader} from a fragmented asset's initialization segment and one fragment.
+   *
+   * For a fragment stored as its own file (DASH/HLS with separate segment files) pass the two blobs.
+   * For a fragment cut out of a single-file fragmented MP4 (byte-range HLS) also pass
+   * `options.fragmentBaseOffset`: see {@link FragmentOptions}.
    *
    * @param format Asset format.
    * @param init Blob of initial fragment bytes.
    * @param fragment Blob of fragment bytes.
    * @param settings Optional context settings for the reader. Will override any values inherited by the top-level settings passed to createC2pa.
+   * @param options Optional {@link FragmentOptions}.
    * @returns A {@link Reader} object or null if no C2PA metadata was found.
    */
   fromBlobFragment: (
     format: string,
     init: Blob,
     fragment: Blob,
-    settings?: Settings
+    settings?: Settings,
+    options?: FragmentOptions
   ) => Promise<Reader | null>;
+}
+
+/**
+ * Options for {@link ReaderFactory.fromBlobFragment}.
+ */
+export interface FragmentOptions {
+  /**
+   * Absolute byte offset of the fragment's first byte within a single-file fragmented MP4.
+   *
+   * The hard binding of such an asset covers absolute box offsets, so a fragment cut out of it
+   * (one byte-range HLS segment, for instance) can only be verified when the reader knows where
+   * it sat in the file. The cut must follow the specification's leaf boundaries: the init blob is
+   * everything before the first C2PA `merkle` uuid box, and each fragment runs from one `merkle`
+   * uuid box to the next (the last one to end of file). Any other cut, or the wrong offset, reports
+   * `assertion.bmffHash.mismatch`.
+   *
+   * Omit it (or pass `0`) for fragments that are their own files. Must be a non-negative safe
+   * integer; anything else throws.
+   */
+  fragmentBaseOffset?: number;
 }
 
 /**
@@ -156,7 +183,8 @@ export function createReaderFactory(worker: WorkerManager): ReaderFactory {
       format: string,
       init: Blob,
       fragment: Blob,
-      settings?: Settings
+      settings?: Settings,
+      options?: FragmentOptions
     ) {
       if (!isSupportedReaderFormat(format)) {
         throw new UnsupportedFormatError(format);
@@ -166,6 +194,18 @@ export function createReaderFactory(worker: WorkerManager): ReaderFactory {
         throw new AssetTooLargeError(init.size);
       }
 
+      const fragmentBaseOffset = options?.fragmentBaseOffset;
+      if (
+        fragmentBaseOffset !== undefined &&
+        !(Number.isSafeInteger(fragmentBaseOffset) && fragmentBaseOffset >= 0)
+      ) {
+        throw new RangeError(
+          `fragmentBaseOffset must be a non-negative safe integer, got ${String(
+            fragmentBaseOffset
+          )}`
+        );
+      }
+
       try {
         const settingsJson = settings && (await settingsToWasmJson(settings));
 
@@ -173,7 +213,8 @@ export function createReaderFactory(worker: WorkerManager): ReaderFactory {
           format,
           init,
           fragment,
-          settingsJson
+          settingsJson,
+          fragmentBaseOffset
         );
 
         const reader = createReader(worker, readerId, () => {
