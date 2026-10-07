@@ -103,10 +103,7 @@ const reader = await c2pa.reader.fromBlobFragment(
 
 The cut has to follow the specification's leaf boundaries: the init blob is everything before the first C2PA `merkle` uuid box, and each segment runs from one `merkle` uuid box to the next (the last one to end of file), so the playlist must be generated from the signed file with those boundaries. A segment cut anywhere else, or verified at the wrong offset, reports `assertion.bmffHash.mismatch`. Players expose the offset per segment (`Fragment.byteRangeStartOffset` in hls.js, `SegmentReference.getStartByte()` in Shaka).
 
-Byte ranges that a player derives from the file's own `sidx` boxes (DASH on-demand `SegmentBase`, or an HLS playlist cut at each `sidx`) do **not** match as delivered: a leaf runs up to the next `moof`, so it includes the following fragment's `sidx`, while a `sidx` reference ends at the end of the `mdat`. Passed straight to `fromBlobFragment`, such segments are rejected even with the right offset. Two ways round it:
-
-- Regroup the bytes before calling the reader: everything in a segment before its C2PA `merkle` box belongs to the previous leaf. The `@stardustproof/c2pa-bridges` hls.js and Shaka adapters do this automatically.
-- Sign with c2pa-rs `core.single_file_fragment_exclude_sidx` (STARDUSTproof CLI `--exclude-sidx-from-hash`), which leaves `sidx` out of the hash so `sidx`-cut segments verify as delivered.
+Byte ranges that a player derives from the file's own `sidx` boxes (DASH on-demand `SegmentBase`, or an HLS playlist cut at each `sidx`) do **not** match as delivered: a leaf runs up to the next `moof`, so it includes the following fragment's `sidx`, while a `sidx` reference ends at the end of the `mdat`. Passed straight to `fromBlobFragment`, such segments are rejected even with the right offset. Regroup the bytes before calling the reader: everything in a segment before its C2PA `merkle` box belongs to the previous leaf. The `@stardustproof/c2pa-bridges` hls.js and Shaka adapters do this automatically.
 
 ### Building C2PA manifests with ingredients
 

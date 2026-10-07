@@ -32,8 +32,10 @@ for r in "360p 320x180" "180p 160x90"; do set -- $r
 done
 ```
 
-Sign with the castlabs c2pa-rs fork (the single-file writer), for example from
-a scratch `sdk/examples/` program:
+The committed files were signed on 2026-10-06 with the single-file writer of
+castlabs/c2pa-rs `fix/stable-single-file-fmp4` @ `75f6df21` (castlabs/c2pa-rs#18
+builds on it and does not change signing). Sign with that writer, for example
+from a scratch `sdk/examples/` program:
 
 ```rust
 let signer = c2pa::create_signer::from_keys(&cert_pem, &key_pem, c2pa::SigningAlg::Es256, None)?;
