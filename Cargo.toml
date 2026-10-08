@@ -10,7 +10,7 @@ members = [
 rust-version = "1.88.0"
 
 [workspace.dependencies]
-c2pa = { git = "https://github.com/BibinBaby444/c2pa-rs", rev = "fb3243c185e9993f44f8bdb158d852d15a430537", features = ["pdf", "rust_native_crypto", "fetch_remote_manifests", "json_schema", "http_reqwest"], default-features = false }
+c2pa = { git = "https://github.com/BibinBaby444/c2pa-rs", rev = "ff7b17bc6805b7f8f6ed569ffae45fad98d2a659", features = ["pdf", "rust_native_crypto", "fetch_remote_manifests", "json_schema", "http_reqwest"], default-features = false }
 
 [profile.release]
 opt-level = "s"

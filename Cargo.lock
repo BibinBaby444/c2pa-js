@@ -361,7 +361,7 @@ checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 [[package]]
 name = "c2pa"
 version = "0.80.0"
-source = "git+https://github.com/BibinBaby444/c2pa-rs?rev=fb3243c185e9993f44f8bdb158d852d15a430537#fb3243c185e9993f44f8bdb158d852d15a430537"
+source = "git+https://github.com/BibinBaby444/c2pa-rs?rev=ff7b17bc6805b7f8f6ed569ffae45fad98d2a659#ff7b17bc6805b7f8f6ed569ffae45fad98d2a659"
 dependencies = [
  "asn1-rs",
  "async-generic",
