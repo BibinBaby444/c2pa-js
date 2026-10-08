@@ -118,17 +118,7 @@ describe('builder', () => {
         const definitionFromArchivedBuilder =
           await builderFromArchive.getDefinition();
 
-        // Known c2pa-rs 0.80 bug: a builder restored from an archive keeps the
-        // archive's own org.contentauth.archive.metadata assertion (and would
-        // sign it). Fixed upstream in contentauth/c2pa-rs#2374, not yet
-        // released. Ignore that one assertion and compare everything else.
-        const ARCHIVE_METADATA = 'org.contentauth.archive.metadata';
-        expect({
-          ...definitionFromArchivedBuilder,
-          assertions: definitionFromArchivedBuilder.assertions?.filter(
-            (a) => a.label !== ARCHIVE_METADATA
-          )
-        }).toMatchObject(manifestDefinition);
+        expect(definitionFromArchivedBuilder).toMatchObject(manifestDefinition);
       });
 
       test('should re-create a builder from an archive with ingredient from blob', async ({
