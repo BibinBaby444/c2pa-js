@@ -1,5 +1,11 @@
 # @contentauth/c2pa-types
 
+## 0.5.0
+
+### Minor Changes
+
+- Types are generated from the c2pa-rs revision the wasm is built from (castlabs/c2pa-rs#18 with the #2374 backport, c2pa 0.80), so they follow its manifest store schema.
+
 ## 0.4.3
 
 ### Patch Changes
